@@ -1,0 +1,43 @@
+name: Sync Fork
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/anthropics/skills.git
+
+      - name: Fetch upstream
+        run: |
+          git fetch upstream
+
+      - name: Check if merge is needed
+        id: check
+        run: |
+          echo "behind=$(git rev-list --count HEAD..upstream/main)" >> $GITHUB_OUTPUT
+          echo "ahead=$(git rev-list --count upstream/main..HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Merge upstream
+        if: steps.check.outputs.behind != '0'
+        run: |
+          git merge upstream/main --no-edit
+
+      - name: Push changes
+        if: steps.check.outputs.behind != '0'
+        run: |
+          git push
